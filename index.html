@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InferenceGateway-Scale — Scalable LLM Inference Gateway | HybridTech</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #22d3ee;
+            --primary-glow: rgba(34,211,238,0.3);
+            --secondary: #f472b6;
+            --accent: #34d399;
+            --warning: #fbbf24;
+            --success: #4ade80;
+            --danger: #f87171;
+            --bg-dark: #020a14;
+            --bg-card: #071020;
+            --bg-elevated: #0d1a30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #162240;
+            --gradient: linear-gradient(135deg, #22d3ee 0%, #f472b6 50%, #34d399 100%);
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body {
+            font-family:'Sora',sans-serif; background:var(--bg-dark); color:var(--text-primary); min-height:100vh;
+            background-image:
+                radial-gradient(ellipse at 10% 90%,rgba(34,211,238,0.06) 0%,transparent 50%),
+                radial-gradient(ellipse at 90% 10%,rgba(244,114,182,0.05) 0%,transparent 50%),
+                radial-gradient(ellipse at 50% 50%,rgba(52,211,153,0.03) 0%,transparent 60%);
+        }
+        .header {
+            background:linear-gradient(180deg,rgba(34,211,238,0.04) 0%,transparent 100%);
+            border-bottom:1px solid var(--border); padding:.7rem 2rem; position:sticky; top:0; z-index:100; backdrop-filter:blur(20px);
+        }
+        .header-inner{max-width:1800px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;}
+        .logo{display:flex;align-items:center;gap:.75rem;}
+        .logo-icon{width:44px;height:44px;background:var(--gradient);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;position:relative;}
+        .logo-icon::after{content:'';position:absolute;inset:-2px;background:var(--gradient);border-radius:13px;z-index:-1;opacity:.45;filter:blur(8px);}
+        .logo-text{font-size:1.4rem;font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .logo-sub{font-size:.55rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:3px;font-weight:500;}
+        .badges{display:flex;gap:.35rem;flex-wrap:wrap;}
+        .badge{background:var(--bg-card);border:1px solid var(--border);padding:.3rem .65rem;border-radius:5px;font-size:.6rem;color:var(--text-secondary);font-family:'Fira Code',monospace;}
+        .badge.live{background:rgba(74,222,128,0.12);border-color:var(--success);color:var(--success);}
+        .badge.live::before{content:'';display:inline-block;width:6px;height:6px;background:var(--success);border-radius:50%;margin-right:5px;animation:pulse 1.5s ease-in-out infinite;}
+        @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+        .main{max-width:1800px;margin:0 auto;padding:1.25rem 2rem 2rem;}
+        .hero{text-align:center;margin-bottom:1.25rem;}
+        .hero h1{font-size:2.2rem;font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.3rem;}
+        .hero p{color:var(--text-secondary);font-size:.95rem;}
+
+        .top-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:1.15rem;}
+        .ts{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center;}
+        .ts-val{font-size:1.15rem;font-weight:700;font-family:'Fira Code',monospace;}
+        .ts-label{font-size:.55rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:.1rem;}
+
+        .workspace{display:grid;grid-template-columns:1fr 400px;gap:1.15rem;}
+        @media(max-width:1280px){.workspace{grid-template-columns:1fr;}.top-stats{grid-template-columns:repeat(3,1fr);}}
+
+        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+        .card-header{padding:.9rem 1.15rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(13,26,48,0.7) 0%,transparent 100%);}
+        .card-title{font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.45rem;}
+        .card-body{padding:1.15rem;}
+
+        /* Workers */
+        .workers-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:1rem;}
+        .worker{background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:.7rem;text-align:center;transition:all .3s;position:relative;overflow:hidden;}
+        .worker.active{border-color:var(--primary);}
+        .worker.active::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--primary);}
+        .worker.busy{border-color:var(--warning);}
+        .worker.busy::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--warning);}
+        .worker.overloaded{border-color:var(--danger);}
+        .worker.overloaded::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--danger);}
+        .worker-id{font-size:.6rem;color:var(--text-muted);font-family:'Fira Code',monospace;margin-bottom:.25rem;}
+        .worker-status{font-size:.7rem;font-weight:600;margin-bottom:.2rem;}
+        .worker-load-bg{height:4px;background:var(--bg-dark);border-radius:2px;overflow:hidden;}
+        .worker-load{height:100%;border-radius:2px;transition:width .4s,background .3s;}
+
+        /* Queue visualization */
+        .queue-section{background:var(--bg-elevated);border-radius:12px;padding:1rem;margin-bottom:1rem;}
+        .queue-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;}
+        .queue-title{font-size:.8rem;font-weight:600;}
+        .queue-depth{font-family:'Fira Code',monospace;font-size:.75rem;}
+        .queue-vis{display:flex;gap:3px;flex-wrap:wrap;min-height:30px;align-items:flex-end;}
+        .queue-item{width:18px;height:18px;border-radius:3px;transition:all .3s;animation:queueIn .2s ease;}
+        @keyframes queueIn{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+        .queue-item.priority-high{background:var(--danger);}
+        .queue-item.priority-medium{background:var(--warning);}
+        .queue-item.priority-low{background:var(--primary);}
+
+        /* Rate limiter */
+        .rate-section{background:var(--bg-elevated);border-radius:12px;padding:1rem;margin-bottom:1rem;}
+        .rate-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;}
+        .rate-providers{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+        .rate-card{background:var(--bg-dark);border-radius:8px;padding:.6rem;text-align:center;}
+        .rate-name{font-size:.65rem;font-weight:600;margin-bottom:.3rem;}
+        .rate-bar-bg{height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;margin-bottom:.25rem;}
+        .rate-bar{height:100%;border-radius:3px;transition:width .5s;}
+        .rate-val{font-size:.6rem;font-family:'Fira Code',monospace;color:var(--text-muted);}
+
+        /* Controls */
+        .controls{display:flex;gap:.5rem;margin-bottom:1rem;}
+        .ctrl-btn{flex:1;padding:.7rem;background:var(--bg-elevated);border:1px solid var(--border);border-radius:9px;color:var(--text-primary);font-family:'Sora',sans-serif;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:.4rem;}
+        .ctrl-btn:hover{border-color:var(--primary);background:rgba(34,211,238,0.08);}
+        .ctrl-btn.active{border-color:var(--primary);background:rgba(34,211,238,0.15);color:var(--primary);}
+
+        /* Request log */
+        .req-log{max-height:260px;overflow-y:auto;}
+        .req-item{display:flex;gap:.5rem;padding:.55rem .7rem;background:var(--bg-elevated);border-radius:8px;margin-bottom:.35rem;align-items:center;animation:slideIn .3s ease;border-left:3px solid var(--border);}
+        .req-item.processed{border-left-color:var(--success);}
+        .req-item.queued{border-left-color:var(--warning);}
+        .req-item.rejected{border-left-color:var(--danger);}
+        .req-item.rate-limited{border-left-color:var(--secondary);}
+        @keyframes slideIn{from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+        .req-icon{font-size:.85rem;flex-shrink:0;}
+        .req-body{flex:1;min-width:0;}
+        .req-title{font-size:.73rem;font-weight:600;}
+        .req-meta{font-size:.58rem;color:var(--text-muted);font-family:'Fira Code',monospace;}
+        .req-status{font-family:'Fira Code',monospace;font-size:.7rem;font-weight:600;flex-shrink:0;}
+
+        /* Sidebar */
+        .sidebar{display:flex;flex-direction:column;gap:1rem;}
+
+        /* Auto-scaling */
+        .scale-section{background:var(--bg-elevated);border-radius:12px;padding:1rem;}
+        .scale-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;}
+        .scale-title{font-size:.8rem;font-weight:600;}
+        .scale-vis{display:flex;gap:.35rem;align-items:flex-end;height:80px;justify-content:center;}
+        .scale-pod{width:20px;background:var(--primary);border-radius:4px 4px 0 0;transition:all .5s;position:relative;}
+        .scale-pod.scaling{background:var(--warning);animation:scalePulse .8s ease-in-out;}
+        @keyframes scalePulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+        .scale-info{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;margin-top:.6rem;}
+        .scale-stat{background:var(--bg-dark);border-radius:6px;padding:.5rem;text-align:center;}
+        .scale-stat-val{font-size:.85rem;font-weight:700;font-family:'Fira Code',monospace;color:var(--primary);}
+        .scale-stat-label{font-size:.5rem;color:var(--text-muted);text-transform:uppercase;}
+
+        /* Health checks */
+        .health-list{display:flex;flex-direction:column;gap:.35rem;}
+        .health-item{display:flex;align-items:center;gap:.6rem;background:var(--bg-elevated);border-radius:8px;padding:.6rem .75rem;}
+        .health-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+        .health-dot.healthy{background:var(--success);box-shadow:0 0 8px rgba(74,222,128,0.5);}
+        .health-dot.warning{background:var(--warning);box-shadow:0 0 8px rgba(251,191,36,0.5);}
+        .health-dot.unhealthy{background:var(--danger);box-shadow:0 0 8px rgba(248,113,113,0.5);}
+        .health-body{flex:1;}
+        .health-name{font-size:.75rem;font-weight:600;}
+        .health-meta{font-size:.58rem;color:var(--text-muted);font-family:'Fira Code',monospace;}
+        .health-val{font-size:.7rem;font-weight:600;font-family:'Fira Code',monospace;}
+
+        /* K8s metrics */
+        .k8s-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;}
+        .k8s-item{background:var(--bg-elevated);border-radius:10px;padding:.75rem;text-align:center;}
+        .k8s-val{font-size:1.1rem;font-weight:700;font-family:'Fira Code',monospace;color:var(--primary);}
+        .k8s-label{font-size:.55rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:.1rem;}
+        .k8s-bar-bg{height:4px;background:var(--bg-dark);border-radius:2px;margin-top:.3rem;overflow:hidden;}
+        .k8s-bar{height:100%;border-radius:2px;background:var(--primary);transition:width .5s;}
+
+        /* Overlay */
+        .overlay{position:fixed;inset:0;background:rgba(2,10,20,0.97);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:1000;}
+        .overlay.active{display:flex;}
+        .gw-anim{display:flex;gap:6px;margin-bottom:1.5rem;}
+        .gw-node{width:14px;height:14px;background:var(--primary);border-radius:3px;animation:nodeFlow 1.2s ease-in-out infinite;}
+        .gw-node:nth-child(2){animation-delay:.15s;background:var(--secondary);}
+        .gw-node:nth-child(3){animation-delay:.3s;background:var(--accent);}
+        .gw-node:nth-child(4){animation-delay:.45s;}
+        .gw-node:nth-child(5){animation-delay:.6s;background:var(--secondary);}
+        @keyframes nodeFlow{0%,100%{transform:translateY(0) scale(1);opacity:.3;}50%{transform:translateY(-15px) scale(1.2);opacity:1;}}
+        .ov-text{font-size:1rem;font-weight:700;margin-bottom:.4rem;}
+        .ov-stage{font-size:.8rem;color:var(--text-muted);font-family:'Fira Code',monospace;margin-bottom:1.2rem;}
+        .ov-bar-bg{width:260px;height:4px;background:var(--bg-elevated);border-radius:2px;overflow:hidden;}
+        .ov-bar{height:100%;background:var(--gradient);width:0%;transition:width .3s;}
+
+        .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:.8rem 1.15rem;display:flex;align-items:center;gap:.55rem;box-shadow:0 12px 40px rgba(0,0,0,0.6);transform:translateY(100px);opacity:0;transition:all .4s cubic-bezier(.4,0,.2,1);z-index:1000;}
+        .toast.show{transform:translateY(0);opacity:1;}
+        .toast-icon{font-size:1.2rem;}
+        .toast-title{font-size:.8rem;font-weight:600;}
+        .toast-msg{font-size:.65rem;color:var(--text-muted);}
+
+        ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--bg-dark);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <div class="logo">
+            <div class="logo-icon">🚀</div>
+            <div>
+                <div class="logo-text">InferenceGateway-Scale</div>
+                <div class="logo-sub">HybridTech — Scalable LLM Gateway</div>
+            </div>
+        </div>
+        <div class="badges">
+            <span class="badge live">● Gateway Active</span>
+            <span class="badge">FastAPI + Redis</span>
+            <span class="badge">K8s Auto-Scale</span>
+            <span class="badge">Rate Limiting</span>
+        </div>
+    </div>
+</header>
+
+<main class="main">
+    <div class="hero">
+        <h1>🚀 Scalable LLM Inference Gateway</h1>
+        <p>Queue management, rate limiting, health checks & Kubernetes auto-scaling for production AI workloads</p>
+    </div>
+
+    <div class="top-stats">
+        <div class="ts"><div class="ts-val" style="color:var(--primary)" id="tsProcessed">0</div><div class="ts-label">Processed</div></div>
+        <div class="ts"><div class="ts-val" style="color:var(--warning)" id="tsQueued">0</div><div class="ts-label">In Queue</div></div>
+        <div class="ts"><div class="ts-val" style="color:var(--secondary)" id="tsRateLimited">0</div><div class="ts-label">Rate Limited</div></div>
+        <div class="ts"><div class="ts-val" style="color:var(--success)" id="tsThroughput">—</div><div class="ts-label">Throughput</div></div>
+        <div class="ts"><div class="ts-val" style="color:var(--accent)" id="tsWorkers">4</div><div class="ts-label">Active Workers</div></div>
+    </div>
+
+    <div class="workspace">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">⚙️ Gateway Engine</h3>
+                <span style="font-size:.65rem;color:var(--text-muted);font-family:'Fira Code',monospace" id="gwStatus">Idle</span>
+            </div>
+            <div class="card-body">
+                <div class="workers-grid" id="workersGrid">
+                    <div class="worker" id="w0"><div class="worker-id">worker-0</div><div class="worker-status" id="ws0">Idle</div><div class="worker-load-bg"><div class="worker-load" id="wl0" style="width:0%;background:var(--primary)"></div></div></div>
+                    <div class="worker" id="w1"><div class="worker-id">worker-1</div><div class="worker-status" id="ws1">Idle</div><div class="worker-load-bg"><div class="worker-load" id="wl1" style="width:0%;background:var(--primary)"></div></div></div>
+                    <div class="worker" id="w2"><div class="worker-id">worker-2</div><div class="worker-status" id="ws2">Idle</div><div class="worker-load-bg"><div class="worker-load" id="wl2" style="width:0%;background:var(--primary)"></div></div></div>
+                    <div class="worker" id="w3"><div class="worker-id">worker-3</div><div class="worker-status" id="ws3">Idle</div><div class="worker-load-bg"><div class="worker-load" id="wl3" style="width:0%;background:var(--primary)"></div></div></div>
+                </div>
+
+                <div class="controls">
+                    <button class="ctrl-btn" id="startBtn" onclick="toggleGateway()">
+                        <span id="startIcon">▶️</span><span id="startText">Start Gateway</span>
+                    </button>
+                    <button class="ctrl-btn" onclick="floodQueue()">🌊 Flood Queue</button>
+                    <button class="ctrl-btn" onclick="scaleUp()">📈 Scale Up</button>
+                    <button class="ctrl-btn" onclick="scaleDown()">📉 Scale Down</button>
+                    <button class="ctrl-btn" onclick="resetGw()">🔄 Reset</button>
+                </div>
+
+                <div class="queue-section">
+                    <div class="queue-header">
+                        <span class="queue-title">📬 Request Queue (Redis-backed)</span>
+                        <span class="queue-depth" id="queueDepth" style="color:var(--primary)">Depth: 0</span>
+                    </div>
+                    <div class="queue-vis" id="queueVis"></div>
+                </div>
+
+                <div class="rate-section">
+                    <div class="rate-header">
+                        <span class="queue-title">🛡️ Rate Limiter</span>
+                        <span style="font-size:.6rem;color:var(--text-muted);font-family:'Fira Code',monospace">Token bucket per provider</span>
+                    </div>
+                    <div class="rate-providers">
+                        <div class="rate-card">
+                            <div class="rate-name" style="color:var(--primary)">🟦 GPT-4o</div>
+                            <div class="rate-bar-bg"><div class="rate-bar" id="rateA" style="width:100%;background:var(--primary)"></div></div>
+                            <div class="rate-val" id="rateValA">60/60 rpm</div>
+                        </div>
+                        <div class="rate-card">
+                            <div class="rate-name" style="color:var(--secondary)">🟪 Claude 3.5</div>
+                            <div class="rate-bar-bg"><div class="rate-bar" id="rateB" style="width:100%;background:var(--secondary)"></div></div>
+                            <div class="rate-val" id="rateValB">40/40 rpm</div>
+                        </div>
+                        <div class="rate-card">
+                            <div class="rate-name" style="color:var(--accent)">🟩 Mistral</div>
+                            <div class="rate-bar-bg"><div class="rate-bar" id="rateC" style="width:100%;background:var(--accent)"></div></div>
+                            <div class="rate-val" id="rateValC">80/80 rpm</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">🔄 Auto-Scaling (HPA)</h3></div>
+                <div class="card-body">
+                    <div class="scale-section">
+                        <div class="scale-header">
+                            <span class="scale-title">Pod Replicas</span>
+                            <span style="font-size:.65rem;color:var(--text-muted);font-family:'Fira Code',monospace" id="scaleMode">manual</span>
+                        </div>
+                        <div class="scale-vis" id="scaleVis">
+                            <div class="scale-pod" style="height:50px"></div>
+                            <div class="scale-pod" style="height:50px"></div>
+                            <div class="scale-pod" style="height:50px"></div>
+                            <div class="scale-pod" style="height:50px"></div>
+                        </div>
+                        <div class="scale-info">
+                            <div class="scale-stat"><div class="scale-stat-val" id="podCount">4</div><div class="scale-stat-label">Pods</div></div>
+                            <div class="scale-stat"><div class="scale-stat-val" id="cpuAvg">—</div><div class="scale-stat-label">Avg CPU</div></div>
+                            <div class="scale-stat"><div class="scale-stat-val" id="memAvg">—</div><div class="scale-stat-label">Avg Memory</div></div>
+                            <div class="scale-stat"><div class="scale-stat-val" id="targetRPS">—</div><div class="scale-stat-label">Target RPS</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">💚 Health Checks</h3></div>
+                <div class="card-body">
+                    <div class="health-list" id="healthList">
+                        <div class="health-item"><div class="health-dot"></div><div class="health-body"><div class="health-name">Gateway API</div><div class="health-meta">FastAPI /health</div></div><div class="health-val" id="hGw">—</div></div>
+                        <div class="health-item"><div class="health-dot"></div><div class="health-body"><div class="health-name">Redis Queue</div><div class="health-meta">redis:6379</div></div><div class="health-val" id="hRedis">—</div></div>
+                        <div class="health-item"><div class="health-dot"></div><div class="health-body"><div class="health-name">Worker Pool</div><div class="health-meta">async workers</div></div><div class="health-val" id="hWorker">—</div></div>
+                        <div class="health-item"><div class="health-dot"></div><div class="health-body"><div class="health-name">GPT-4o API</div><div class="health-meta">openai /v1</div></div><div class="health-val" id="hGpt">—</div></div>
+                        <div class="health-item"><div class="health-dot"></div><div class="health-body"><div class="health-name">Claude API</div><div class="health-meta">anthropic /v1</div></div><div class="health-val" id="hClaude">—</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📋 Request Log</h3>
+                    <span style="font-size:.6rem;color:var(--text-muted)" id="reqCount">0 requests</span>
+                </div>
+                <div class="card-body">
+                    <div class="req-log" id="reqLog">
+                        <div style="color:var(--text-muted);font-size:.75rem;text-align:center;padding:1rem;">Start gateway to see requests</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="overlay" id="overlay">
+    <div class="gw-anim"><div class="gw-node"></div><div class="gw-node"></div><div class="gw-node"></div><div class="gw-node"></div><div class="gw-node"></div></div>
+    <div class="ov-text">Booting InferenceGateway...</div>
+    <div class="ov-stage" id="ovStage">Initializing FastAPI server...</div>
+    <div class="ov-bar-bg"><div class="ov-bar" id="ovBar"></div></div>
+</div>
+
+<div class="toast" id="toast">
+    <span class="toast-icon" id="toastIcon">✅</span>
+    <div><div class="toast-title" id="toastTitle"></div><div class="toast-msg" id="toastMsg"></div></div>
+</div>
+
+<script>
+let gwRunning = false, mainInterval = null;
+let processed = 0, rateLimited = 0;
+let queueItems = [], reqItems = [];
+let workerCount = 4;
+let workerLoads = [0,0,0,0];
+let rateBuckets = { A: 60, B: 40, C: 80 };
+const rateMax = { A: 60, B: 40, C: 80 };
+const providerNames = { A:'GPT-4o', B:'Claude 3.5', C:'Mistral' };
+const providerIcons = { A:'🟦', B:'🟪', C:'🟩' };
+const providerColors = { A:'var(--primary)', B:'var(--secondary)', C:'var(--accent)' };
+
+function toggleGateway() { if(!gwRunning) startGw(); else stopGw(); }
+
+function startGw() {
+    const ov=document.getElementById('overlay'),bar=document.getElementById('ovBar'),stage=document.getElementById('ovStage');
+    ov.classList.add('active');
+    const stages=['Initializing FastAPI server...','Connecting Redis queue...','Spawning async workers...','Loading rate limit configs...','Starting health check daemon...','Gateway ready!'];
+    let p=0,si=0;
+    const iv=setInterval(()=>{
+        p+=Math.random()*18+7;if(p>100)p=100;bar.style.width=p+'%';
+        const ns=Math.floor((p/100)*stages.length);
+        if(ns!==si&&ns<stages.length){si=ns;stage.textContent=stages[si];}
+        if(p>=100){clearInterval(iv);setTimeout(()=>{ov.classList.remove('active');beginGw();},250);}
+    },70);
+}
+
+function beginGw() {
+    gwRunning=true;
+    document.getElementById('startIcon').textContent='⏸️';
+    document.getElementById('startText').textContent='Pause Gateway';
+    document.getElementById('startBtn').classList.add('active');
+    document.getElementById('gwStatus').textContent='Running';
+    document.getElementById('gwStatus').style.color='var(--success)';
+    updateHealthChecks(true);
+    mainInterval=setInterval(tick,350);
+    toast('✅','Gateway Online','Processing requests through '+workerCount+' workers');
+}
+
+function stopGw() {
+    gwRunning=false;
+    document.getElementById('startIcon').textContent='▶️';
+    document.getElementById('startText').textContent='Resume Gateway';
+    document.getElementById('startBtn').classList.remove('active');
+    document.getElementById('gwStatus').textContent='Paused';
+    document.getElementById('gwStatus').style.color='var(--warning)';
+    if(mainInterval)clearInterval(mainInterval);
+    toast('⏸️','Gateway Paused','Workers suspended');
+}
+
+function tick() {
+    // Incoming requests
+    const incoming = Math.floor(Math.random()*3)+1;
+    for(let i=0;i<incoming;i++) ingestRequest();
+    // Process from queue
+    const canProcess = Math.min(queueItems.length, workerCount);
+    for(let i=0;i<canProcess;i++) processRequest();
+    // Refill rate buckets slowly
+    Object.keys(rateBuckets).forEach(k=>{rateBuckets[k]=Math.min(rateBuckets[k]+0.5,rateMax[k]);});
+    // Decay worker loads
+    workerLoads = workerLoads.map(l=>Math.max(0,l-5));
+    updateUI();
+    // Auto-scale check
+    if(queueItems.length > workerCount * 5 && workerCount < 8) {
+        scaleUp(true);
+    }
+}
+
+function ingestRequest() {
+    const pk = ['A','B','C'][Math.floor(Math.random()*3)];
+    const priority = Math.random() > 0.8 ? 'high' : Math.random() > 0.5 ? 'medium' : 'low';
+    // Check rate limit
+    if(rateBuckets[pk] < 1) {
+        rateLimited++;
+        addReqLog('rate-limited', `${providerIcons[pk]} Rate limited → ${providerNames[pk]}`, `${priority} priority • bucket empty`);
+        return;
+    }
+    rateBuckets[pk] -= 1;
+    // Add to queue
+    const item = { pk, priority, id: processed + queueItems.length + rateLimited };
+    queueItems.push(item);
+    renderQueue();
+}
+
+function processRequest() {
+    if(queueItems.length === 0) return;
+    // Sort by priority
+    queueItems.sort((a,b)=>{
+        const order={high:0,medium:1,low:2};
+        return order[a.priority]-order[b.priority];
+    });
+    const item = queueItems.shift();
+    processed++;
+    // Assign to least loaded worker
+    let minIdx = 0;
+    workerLoads.forEach((l,i)=>{if(i<workerCount&&l<workerLoads[minIdx])minIdx=i;});
+    workerLoads[minIdx] = Math.min(100, workerLoads[minIdx]+25+Math.random()*15);
+    const lat = Math.round(40+Math.random()*80);
+    addReqLog('processed', `${providerIcons[item.pk]} → ${providerNames[item.pk]}`, `worker-${minIdx} • ${lat}ms • ${item.priority}`);
+    renderQueue();
+}
+
+function renderQueue() {
+    const vis = document.getElementById('queueVis');
+    vis.innerHTML = queueItems.slice(0,40).map(item =>
+        `<div class="queue-item priority-${item.priority}" title="${item.priority}"></div>`
+    ).join('');
+    document.getElementById('queueDepth').textContent = 'Depth: ' + queueItems.length;
+    document.getElementById('queueDepth').style.color = queueItems.length > 20 ? 'var(--danger)' : queueItems.length > 10 ? 'var(--warning)' : 'var(--primary)';
+}
+
+function addReqLog(type, title, meta) {
+    const log = document.getElementById('reqLog');
+    if(reqItems.length===0) log.innerHTML='';
+    const icons = {processed:'✅',queued:'⏳',rejected:'❌','rate-limited':'🛡️'};
+    const colors = {processed:'var(--success)',queued:'var(--warning)',rejected:'var(--danger)','rate-limited':'var(--secondary)'};
+    const el=document.createElement('div');
+    el.className='req-item '+type;
+    el.innerHTML=`<span class="req-icon">${icons[type]}</span><div class="req-body"><div class="req-title">${title}</div><div class="req-meta">${meta}</div></div><div class="req-status" style="color:${colors[type]}">${type==='processed'?'OK':type==='rate-limited'?'429':'WAIT'}</div>`;
+    log.insertBefore(el,log.firstChild);
+    reqItems.unshift(el);
+    if(reqItems.length>30) reqItems.pop().remove();
+    document.getElementById('reqCount').textContent=(processed+rateLimited)+' requests';
+}
+
+function updateUI() {
+    document.getElementById('tsProcessed').textContent=processed;
+    document.getElementById('tsQueued').textContent=queueItems.length;
+    document.getElementById('tsRateLimited').textContent=rateLimited;
+    document.getElementById('tsThroughput').textContent=Math.round(2+Math.random()*workerCount)+'/s';
+    document.getElementById('tsWorkers').textContent=workerCount;
+    // Workers
+    for(let i=0;i<8;i++){
+        const w=document.getElementById('w'+i);
+        if(!w) continue;
+        if(i>=workerCount){w.style.display='none';continue;}
+        w.style.display='';
+        const load=workerLoads[i]||0;
+        w.className='worker '+(load>70?'overloaded':load>30?'busy active':'active');
+        document.getElementById('ws'+i).textContent=load>70?'Overloaded':load>30?'Busy':'Ready';
+        document.getElementById('ws'+i).style.color=load>70?'var(--danger)':load>30?'var(--warning)':'var(--success)';
+        const bar=document.getElementById('wl'+i);
+        bar.style.width=load+'%';
+        bar.style.background=load>70?'var(--danger)':load>30?'var(--warning)':'var(--primary)';
+    }
+    // Rate bars
+    Object.keys(rateBuckets).forEach(k=>{
+        const pct=(rateBuckets[k]/rateMax[k])*100;
+        document.getElementById('rate'+k).style.width=pct+'%';
+        document.getElementById('rateVal'+k).textContent=Math.round(rateBuckets[k])+'/'+rateMax[k]+' rpm';
+    });
+    // Scale info
+    document.getElementById('podCount').textContent=workerCount;
+    document.getElementById('cpuAvg').textContent=Math.round(20+Math.random()*40)+'%';
+    document.getElementById('memAvg').textContent=Math.round(30+Math.random()*25)+'%';
+    document.getElementById('targetRPS').textContent=workerCount*3;
+}
+
+function updateHealthChecks(online) {
+    const dots=document.querySelectorAll('.health-dot');
+    const vals=['hGw','hRedis','hWorker','hGpt','hClaude'];
+    dots.forEach((dot,i)=>{
+        if(online){
+            dot.className='health-dot healthy';
+            document.getElementById(vals[i]).textContent=Math.round(2+Math.random()*15)+'ms';
+            document.getElementById(vals[i]).style.color='var(--success)';
+        } else {
+            dot.className='health-dot';
+            document.getElementById(vals[i]).textContent='—';
+            document.getElementById(vals[i]).style.color='var(--text-muted)';
+        }
+    });
+}
+
+function scaleUp(auto) {
+    if(workerCount>=8){toast('⚠️','Max Scale','Already at 8 workers');return;}
+    workerCount++;
+    workerLoads.push(0);
+    // Add worker DOM
+    const grid=document.getElementById('workersGrid');
+    const idx=workerCount-1;
+    const w=document.createElement('div');
+    w.className='worker active';w.id='w'+idx;
+    w.innerHTML=`<div class="worker-id">worker-${idx}</div><div class="worker-status" id="ws${idx}" style="color:var(--success)">Ready</div><div class="worker-load-bg"><div class="worker-load" id="wl${idx}" style="width:0%;background:var(--primary)"></div></div>`;
+    grid.appendChild(w);
+    // Scale vis
+    renderScaleVis();
+    document.getElementById('scaleMode').textContent=auto?'auto-hpa':'manual';
+    toast('📈',auto?'Auto-Scaled':'Scaled Up',`Now running ${workerCount} workers`);
+}
+
+function scaleDown() {
+    if(workerCount<=1){toast('⚠️','Min Scale','Need at least 1 worker');return;}
+    const idx=workerCount-1;
+    const w=document.getElementById('w'+idx);
+    if(w) w.remove();
+    workerCount--;
+    workerLoads.pop();
+    renderScaleVis();
+    toast('📉','Scaled Down',`Now running ${workerCount} workers`);
+}
+
+function renderScaleVis() {
+    const vis=document.getElementById('scaleVis');
+    vis.innerHTML='';
+    for(let i=0;i<workerCount;i++){
+        const pod=document.createElement('div');
+        pod.className='scale-pod';
+        pod.style.height=(30+Math.random()*30)+'px';
+        vis.appendChild(pod);
+    }
+}
+
+function floodQueue() {
+    if(!gwRunning){toast('⚠️','Not Running','Start gateway first');return;}
+    toast('🌊','Queue Flood','Injecting 40 requests');
+    let i=0;
+    const iv=setInterval(()=>{
+        ingestRequest();ingestRequest();
+        i+=2;
+        if(i>=40){clearInterval(iv);updateUI();}
+    },30);
+}
+
+function resetGw() {
+    stopGw();
+    processed=0;rateLimited=0;queueItems=[];reqItems=[];
+    workerLoads=[0,0,0,0];workerCount=4;
+    rateBuckets={A:60,B:40,C:80};
+    // Reset workers DOM
+    const grid=document.getElementById('workersGrid');
+    grid.innerHTML='';
+    for(let i=0;i<4;i++){
+        const w=document.createElement('div');w.className='worker';w.id='w'+i;
+        w.innerHTML=`<div class="worker-id">worker-${i}</div><div class="worker-status" id="ws${i}">Idle</div><div class="worker-load-bg"><div class="worker-load" id="wl${i}" style="width:0%;background:var(--primary)"></div></div>`;
+        grid.appendChild(w);
+    }
+    document.getElementById('tsProcessed').textContent='0';
+    document.getElementById('tsQueued').textContent='0';
+    document.getElementById('tsRateLimited').textContent='0';
+    document.getElementById('tsThroughput').textContent='—';
+    document.getElementById('tsWorkers').textContent='4';
+    document.getElementById('queueVis').innerHTML='';
+    document.getElementById('queueDepth').textContent='Depth: 0';
+    document.getElementById('reqLog').innerHTML='<div style="color:var(--text-muted);font-size:.75rem;text-align:center;padding:1rem;">Start gateway to see requests</div>';
+    document.getElementById('reqCount').textContent='0 requests';
+    Object.keys(rateBuckets).forEach(k=>{
+        document.getElementById('rate'+k).style.width='100%';
+        document.getElementById('rateVal'+k).textContent=rateMax[k]+'/'+rateMax[k]+' rpm';
+    });
+    renderScaleVis();
+    updateHealthChecks(false);
+    document.getElementById('gwStatus').textContent='Idle';
+    document.getElementById('gwStatus').style.color='var(--text-muted)';
+    ['podCount'].forEach(id=>document.getElementById(id).textContent='4');
+    ['cpuAvg','memAvg','targetRPS'].forEach(id=>document.getElementById(id).textContent='—');
+    toast('🔄','Reset Complete','Gateway cleared');
+}
+
+function toast(icon,title,msg){
+    const t=document.getElementById('toast');
+    document.getElementById('toastIcon').textContent=icon;
+    document.getElementById('toastTitle').textContent=title;
+    document.getElementById('toastMsg').textContent=msg;
+    t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+renderScaleVis();
+</script>
+</body>
+</html>
