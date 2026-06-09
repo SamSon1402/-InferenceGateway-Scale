@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InferenceGateway-Scale — Scalable LLM Gateway | Built for GetVocal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #F4EFE6;
+            --bg-card: #FAF6EC;
+            --bg-elevated: #FFFFFF;
+            --bg-deep: #EDE7DA;
+            --ink: #1A1B3E;
+            --ink-soft: #2D2E55;
+            --muted: #6B6880;
+            --muted-soft: #9A97A8;
+            --coral: #E8826B;
+            --coral-soft: #F2A593;
+            --coral-bg: #FBE5DC;
+            --olive: #8B8F4E;
+            --olive-soft: #A5A968;
+            --olive-bg: #E8EAD2;
+            --amber: #C9941E;
+            --amber-bg: #F5E7C8;
+            --border: #E0D9C8;
+            --border-soft: #EDE7DA;
+            --shadow: 0 4px 20px rgba(26, 27, 62, 0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        /* Nav (shared) */
+        .top-nav { max-width: 1400px; margin: 1.25rem auto 0; padding: 0 1.5rem; }
+        .nav-pill {
+            background: var(--bg-elevated);
+            border-radius: 100px;
+            padding: 0.85rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+        .brand { display: flex; align-items: center; gap: 0.6rem; }
+        .brand-mark { display: flex; gap: 2px; align-items: flex-end; height: 22px; }
+        .brand-bar { width: 3px; background: var(--ink); border-radius: 2px; animation: equalize 1.4s ease-in-out infinite; }
+        .brand-bar:nth-child(1) { height: 60%; animation-delay: 0s; }
+        .brand-bar:nth-child(2) { height: 100%; animation-delay: 0.15s; }
+        .brand-bar:nth-child(3) { height: 75%; animation-delay: 0.3s; }
+        .brand-bar:nth-child(4) { height: 90%; animation-delay: 0.45s; }
+        .brand-bar:nth-child(5) { height: 50%; animation-delay: 0.6s; }
+        @keyframes equalize { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.5); } }
+        .brand-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.02em; }
+        .nav-meta { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-link { font-size: 0.875rem; color: var(--ink-soft); font-weight: 500; }
+        .nav-cta {
+            background: var(--ink); color: var(--bg-elevated);
+            padding: 0.55rem 1.2rem; border-radius: 100px;
+            font-size: 0.8rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+
+        /* Hero */
+        .hero { max-width: 1400px; margin: 2.5rem auto 1.5rem; padding: 0 1.5rem; }
+        .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: var(--coral-bg); color: var(--coral);
+            padding: 0.4rem 0.9rem; border-radius: 100px;
+            font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem;
+        }
+        .hero-dot {
+            width: 6px; height: 6px; background: var(--coral);
+            border-radius: 50%; animation: pulseDot 2s ease-in-out infinite;
+        }
+        @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .hero h1 {
+            font-size: 2.75rem; font-weight: 700; letter-spacing: -0.03em;
+            line-height: 1.1; margin-bottom: 0.75rem; max-width: 800px;
+        }
+        .hero h1 em { font-style: normal; color: var(--coral); }
+        .hero-sub { font-size: 1.05rem; color: var(--muted); max-width: 640px; }
+
+        /* Layout */
+        .workspace {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem 3rem;
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 1100px) { .workspace { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .card-elevated { background: var(--bg-elevated); box-shadow: var(--shadow); }
+
+        .card-header {
+            padding: 1.1rem 1.4rem;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .card-title { font-size: 0.85rem; font-weight: 600; letter-spacing: -0.01em; }
+        .card-subtitle { font-size: 0.7rem; color: var(--muted-soft); font-family: 'JetBrains Mono', monospace; }
+        .card-body { padding: 1.4rem; }
+
+        /* Top stats */
+        .gateway-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .gw-cell {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1rem;
+        }
+
+        .gw-label {
+            font-size: 0.65rem; color: var(--muted-soft);
+            text-transform: uppercase; letter-spacing: 0.05em;
+            font-weight: 600; margin-bottom: 0.4rem;
+        }
+
+        .gw-value {
+            font-size: 1.5rem; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.02em;
+        }
+
+        .gw-unit { font-size: 0.75rem; color: var(--muted-soft); margin-left: 2px; }
+
+        .gw-note { font-size: 0.7rem; color: var(--olive); margin-top: 0.25rem; font-weight: 500; }
+
+        /* Pod grid */
+        .pod-cluster {
+            padding: 1.4rem;
+        }
+
+        .pod-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .pod {
+            aspect-ratio: 1;
+            background: var(--bg-deep);
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .pod.spawning {
+            animation: podSpawn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes podSpawn {
+            from { transform: scale(0.6); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+
+        .pod.active {
+            background: var(--bg-elevated);
+            border: 1px solid var(--olive);
+            box-shadow: 0 4px 14px rgba(139, 143, 78, 0.15);
+        }
+
+        .pod.busy {
+            border-color: var(--coral);
+            background: var(--coral-bg);
+        }
+
+        .pod.draining {
+            border-color: var(--amber);
+            background: var(--amber-bg);
+            opacity: 0.7;
+        }
+
+        .pod-icon {
+            font-size: 1.3rem;
+            margin-bottom: 0.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--ink-soft);
+        }
+
+        .pod.active .pod-icon { color: var(--olive); }
+        .pod.busy .pod-icon { color: var(--coral); }
+        .pod.draining .pod-icon { color: var(--amber); }
+
+        .pod-label {
+            font-size: 0.55rem;
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pod-load {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            right: 6px;
+            height: 3px;
+            background: var(--bg-deep);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .pod-load-fill {
+            height: 100%;
+            background: var(--olive);
+            border-radius: 100px;
+            transition: width 0.5s;
+        }
+
+        .pod.busy .pod-load-fill { background: var(--coral); }
+        .pod.draining .pod-load-fill { background: var(--amber); }
+
+        /* HPA controls */
+        .hpa-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-soft);
+        }
+
+        .hpa-info {
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .hpa-info strong {
+            color: var(--ink);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .scale-controls {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .scale-btn {
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 0.5rem 1rem;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .scale-btn:hover { background: var(--ink); color: white; border-color: var(--ink); }
+        .scale-btn.danger:hover { background: var(--coral); border-color: var(--coral); }
+
+        /* Queue visualization */
+        .queue-chart {
+            padding: 1.4rem;
+        }
+
+        .queue-meter {
+            background: var(--bg-deep);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .queue-bar-wrap {
+            height: 28px;
+            background: var(--bg-elevated);
+            border-radius: 100px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        .queue-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--olive), var(--olive-soft), var(--amber), var(--coral));
+            border-radius: 100px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .queue-marker {
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            width: 2px;
+            background: var(--ink);
+        }
+
+        .queue-marker::after {
+            content: attr(data-label);
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .queue-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            margin-top: 1rem;
+            gap: 0.8rem;
+        }
+
+        .qs-cell {
+            text-align: center;
+        }
+
+        .qs-val {
+            font-size: 1.05rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .qs-lbl {
+            font-size: 0.6rem;
+            color: var(--muted-soft);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.1rem;
+        }
+
+        /* Request flow */
+        .request-flow {
+            padding: 1.4rem;
+            min-height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-stage {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .flow-stages {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .flow-node {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 0.7rem 0.5rem;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .flow-arrow {
+            color: var(--muted-soft);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+        }
+
+        .flow-sub {
+            font-size: 0.6rem;
+            color: var(--muted-soft);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 400;
+            margin-top: 0.15rem;
+        }
+
+        /* Recent log */
+        .log-stream {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+        }
+
+        .log-line {
+            padding: 0.35rem 0;
+            display: flex;
+            gap: 0.6rem;
+            border-bottom: 1px dashed var(--border-soft);
+            animation: logIn 0.3s ease-out;
+        }
+
+        @keyframes logIn {
+            from { opacity: 0; transform: translateX(-6px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-time { color: var(--muted-soft); flex-shrink: 0; }
+        .log-tag { font-weight: 600; flex-shrink: 0; min-width: 50px; }
+        .log-tag.ok { color: var(--olive); }
+        .log-tag.warn { color: var(--amber); }
+        .log-tag.err { color: var(--coral); }
+        .log-msg { color: var(--ink-soft); }
+
+        /* Rate limiter */
+        .rate-limiter {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+
+        .rl-row {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 0.8rem 1rem;
+        }
+
+        .rl-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .rl-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .rl-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.6rem;
+            color: white;
+        }
+
+        .rl-avatar.gpt { background: linear-gradient(135deg, #10A37F, #0D7C5F); }
+        .rl-avatar.claude { background: linear-gradient(135deg, #C9602A, #A04D1E); }
+        .rl-avatar.mistral { background: linear-gradient(135deg, #FF7000, #C95800); }
+
+        .rl-quota {
+            font-size: 0.7rem;
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .rl-bucket {
+            display: flex;
+            gap: 3px;
+            height: 10px;
+            margin-bottom: 0.3rem;
+        }
+
+        .rl-token {
+            flex: 1;
+            background: var(--olive);
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .rl-token.consumed {
+            background: var(--bg-deep);
+        }
+
+        .rl-status {
+            font-size: 0.65rem;
+            color: var(--muted-soft);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .rl-status.throttled { color: var(--coral); font-weight: 600; }
+
+        /* Health checks */
+        .hc-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .hc-cell {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .hc-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--olive);
+            flex-shrink: 0;
+            box-shadow: 0 0 0 3px var(--olive-bg);
+        }
+
+        .hc-dot.warn { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-bg); }
+        .hc-dot.err { background: var(--coral); box-shadow: 0 0 0 3px var(--coral-bg); }
+
+        .hc-info { flex: 1; }
+        .hc-name { font-size: 0.75rem; font-weight: 600; }
+        .hc-meta { font-size: 0.6rem; color: var(--muted-soft); font-family: 'JetBrains Mono', monospace; }
+
+        .sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .gateway-stats { grid-template-columns: 1fr 1fr; }
+            .pod-grid { grid-template-columns: repeat(4, 1fr); }
+            .flow-stages { grid-template-columns: 1fr; }
+            .flow-arrow { transform: rotate(90deg); margin: 0.3rem auto; }
+            .nav-meta .nav-link { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div class="nav-pill">
+            <div class="brand">
+                <div class="brand-mark">
+                    <div class="brand-bar"></div>
+                    <div class="brand-bar"></div>
+                    <div class="brand-bar"></div>
+                    <div class="brand-bar"></div>
+                    <div class="brand-bar"></div>
+                </div>
+                <span class="brand-name">InferenceGateway&nbsp;<em style="color:var(--coral);font-style:normal">Scale</em></span>
+            </div>
+            <div class="nav-meta">
+                <span class="nav-link">Built for GetVocal</span>
+                <span class="nav-link">FastAPI · Redis · K8s</span>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-eyebrow"><span class="hero-dot"></span> Gateway online</div>
+        <h1>Serve LLM inference at scale — <em>without the surprises</em>.</h1>
+        <p class="hero-sub">FastAPI gateway with Redis-backed priority queue, per-provider token-bucket rate limiting, health-check daemon, and Kubernetes HPA auto-scaling between 1 and 8 replicas. Production patterns, no notebooks.</p>
+    </section>
+
+    <main class="workspace">
+
+        <!-- LEFT -->
+        <div>
+            <div class="gateway-stats">
+                <div class="gw-cell">
+                    <div class="gw-label">Inflight</div>
+                    <div class="gw-value" id="inflightVal">37<span class="gw-unit">req</span></div>
+                    <div class="gw-note">healthy</div>
+                </div>
+                <div class="gw-cell">
+                    <div class="gw-label">Pods active</div>
+                    <div class="gw-value" id="podCountVal">4<span class="gw-unit">/8</span></div>
+                    <div class="gw-note">HPA stable</div>
+                </div>
+                <div class="gw-cell">
+                    <div class="gw-label">Queue depth</div>
+                    <div class="gw-value" id="queueDepthVal">12<span class="gw-unit">req</span></div>
+                    <div class="gw-note">below threshold</div>
+                </div>
+                <div class="gw-cell">
+                    <div class="gw-label">429 rate</div>
+                    <div class="gw-value" id="rate429Val">0.4<span class="gw-unit">%</span></div>
+                    <div class="gw-note">retried &amp; OK</div>
+                </div>
+            </div>
+
+            <div class="card card-elevated">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Worker pool · Kubernetes HPA</div>
+                        <div class="card-subtitle">Auto-scaling 1 → 8 replicas based on queue depth</div>
+                    </div>
+                    <div class="card-subtitle" id="hpaState">▮ scaling active</div>
+                </div>
+                <div class="pod-cluster">
+                    <div class="pod-grid" id="podGrid">
+                        <!-- pods rendered by JS -->
+                    </div>
+
+                    <div class="hpa-row">
+                        <div class="hpa-info">
+                            Target: <strong>queue_depth_per_pod &lt; 10</strong> · Cooldown: <strong>30s</strong> · Currently: <strong id="qpp">3.0</strong>
+                        </div>
+                        <div class="scale-controls">
+                            <button class="scale-btn" onclick="scenario('load')">↑ Simulate load spike</button>
+                            <button class="scale-btn danger" onclick="scenario('429')">⚠ Trigger 429s</button>
+                            <button class="scale-btn" onclick="scenario('drain')">↓ Drain pods</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-elevated" style="margin-top:1.25rem;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Request flow</div>
+                        <div class="card-subtitle">Client → Gateway → Queue → Worker → Provider</div>
+                    </div>
+                </div>
+                <div class="request-flow">
+                    <div class="flow-stages">
+                        <div class="flow-node">
+                            Client<br>
+                            <span class="flow-sub" id="flowClient">142 req/s</span>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-node">
+                            FastAPI<br>
+                            <span class="flow-sub" id="flowApi">async pool</span>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-node">
+                            Redis queue<br>
+                            <span class="flow-sub" id="flowQueue">priority</span>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-node">
+                            Worker pod<br>
+                            <span class="flow-sub" id="flowWorker">→ LLM</span>
+                        </div>
+                    </div>
+
+                    <div class="queue-meter">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;font-size:0.75rem;color:var(--muted);">
+                            <span>Redis priority queue · depth</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink);" id="queueText">12 / 256</span>
+                        </div>
+                        <div class="queue-bar-wrap">
+                            <div class="queue-bar" id="queueBar" style="width: 5%;"></div>
+                            <div class="queue-marker" style="left: 60%;" data-label="HPA trigger"></div>
+                        </div>
+                        <div class="queue-stats">
+                            <div class="qs-cell">
+                                <div class="qs-val" id="qsHigh">2</div>
+                                <div class="qs-lbl">high priority</div>
+                            </div>
+                            <div class="qs-cell">
+                                <div class="qs-val" id="qsNormal">8</div>
+                                <div class="qs-lbl">normal</div>
+                            </div>
+                            <div class="qs-cell">
+                                <div class="qs-val" id="qsLow">2</div>
+                                <div class="qs-lbl">low priority</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-elevated" style="margin-top:1.25rem;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Live event stream</div>
+                        <div class="card-subtitle">tail -f /var/log/gateway</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="log-stream" id="logStream"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <aside class="sidebar">
+
+            <div class="card card-elevated">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Rate limiters</div>
+                        <div class="card-subtitle">Token bucket · per provider</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="rate-limiter">
+                        <div class="rl-row">
+                            <div class="rl-top">
+                                <div class="rl-name"><div class="rl-avatar gpt">GP</div>OpenAI</div>
+                                <div class="rl-quota">10k tpm</div>
+                            </div>
+                            <div class="rl-bucket" id="bucket-gpt"></div>
+                            <div class="rl-status" id="status-gpt">●  4 200 tokens available · burst OK</div>
+                        </div>
+                        <div class="rl-row">
+                            <div class="rl-top">
+                                <div class="rl-name"><div class="rl-avatar claude">CL</div>Anthropic</div>
+                                <div class="rl-quota">8k tpm</div>
+                            </div>
+                            <div class="rl-bucket" id="bucket-claude"></div>
+                            <div class="rl-status" id="status-claude">●  6 100 tokens available · burst OK</div>
+                        </div>
+                        <div class="rl-row">
+                            <div class="rl-top">
+                                <div class="rl-name"><div class="rl-avatar mistral">MI</div>Mistral</div>
+                                <div class="rl-quota">12k tpm</div>
+                            </div>
+                            <div class="rl-bucket" id="bucket-mistral"></div>
+                            <div class="rl-status" id="status-mistral">●  9 800 tokens available · burst OK</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-elevated">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Health checks</div>
+                        <div class="card-subtitle">Every 5s</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="hc-grid">
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-api"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">FastAPI</div>
+                                <div class="hc-meta">200 OK · 8ms</div>
+                            </div>
+                        </div>
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-redis"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">Redis</div>
+                                <div class="hc-meta">PING · 2ms</div>
+                            </div>
+                        </div>
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-gpt"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">GPT-4o</div>
+                                <div class="hc-meta">/v1/models · 89ms</div>
+                            </div>
+                        </div>
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-claude"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">Claude</div>
+                                <div class="hc-meta">/v1/messages · 102ms</div>
+                            </div>
+                        </div>
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-mistral"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">Mistral</div>
+                                <div class="hc-meta">/v1/chat · 74ms</div>
+                            </div>
+                        </div>
+                        <div class="hc-cell">
+                            <div class="hc-dot" id="hc-k8s"></div>
+                            <div class="hc-info">
+                                <div class="hc-name">K8s API</div>
+                                <div class="hc-meta">healthz · 12ms</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-elevated">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">SLO budget</div>
+                        <div class="card-subtitle">30-day rolling</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div style="text-align:center;padding:0.5rem 0;">
+                        <div style="font-size:2.4rem;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-0.02em;color:var(--olive);">
+                            99.94<span style="font-size:1.2rem;color:var(--muted-soft);">%</span>
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.2rem;">availability · target 99.9%</div>
+                    </div>
+                    <div style="height: 8px; background: var(--bg-deep); border-radius: 100px; margin-top: 0.75rem; overflow: hidden;">
+                        <div style="height: 100%; width: 18%; background: linear-gradient(90deg, var(--olive), var(--olive-soft)); border-radius: 100px;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top: 0.4rem; font-size: 0.65rem; color: var(--muted-soft);font-family:'JetBrains Mono',monospace;">
+                        <span>18% budget burned</span>
+                        <span>22 days left</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <script>
+        // -------- State --------
+        const MAX_PODS = 8;
+        const QUEUE_CAPACITY = 256;
+        const HPA_TRIGGER_PCT = 0.6;
+
+        let activePods = 4;
+        let queueDepth = 12;
+        let inflightReqs = 37;
+        let throughput = 142;
+        let rate429 = 0.4;
+        let scenarioMode = 'steady'; // 'steady' | 'load' | '429' | 'drain'
+        let scenarioTimeout = null;
+
+        const providers = {
+            gpt:     { tokens: 4200, capacity: 5000, refill: 80, throttled: false },
+            claude:  { tokens: 6100, capacity: 8000, refill: 130, throttled: false },
+            mistral: { tokens: 9800, capacity: 12000, refill: 200, throttled: false }
+        };
+
+        // -------- Pod grid --------
+        function renderPods() {
+            const grid = document.getElementById('podGrid');
+            grid.innerHTML = '';
+            for (let i = 0; i < MAX_PODS; i++) {
+                const pod = document.createElement('div');
+                if (i < activePods) {
+                    // active pod
+                    const state = scenarioMode === 'drain' && i >= activePods - 1 ? 'draining' :
+                                  inflightReqs / Math.max(activePods,1) > 6 ? 'busy' : 'active';
+                    pod.className = 'pod ' + state;
+                    const load = Math.min(100, (inflightReqs / Math.max(activePods,1)) * 12);
+                    pod.innerHTML = `
+                        <div class="pod-icon">▮</div>
+                        <div class="pod-label">pod-${i}</div>
+                        <div class="pod-load"><div class="pod-load-fill" style="width:${load}%"></div></div>
+                    `;
+                } else {
+                    pod.className = 'pod';
+                    pod.innerHTML = `
+                        <div class="pod-icon" style="opacity:0.3">+</div>
+                        <div class="pod-label" style="opacity:0.5">idle slot</div>
+                    `;
+                }
+                grid.appendChild(pod);
+            }
+        }
+
+        // -------- HPA --------
+        function evaluateHPA() {
+            const queuePerPod = queueDepth / Math.max(activePods, 1);
+            document.getElementById('qpp').textContent = queuePerPod.toFixed(1);
+
+            if (queuePerPod > 10 && activePods < MAX_PODS && scenarioMode !== 'drain') {
+                spawnPod();
+            } else if (queuePerPod < 3 && activePods > 1 && scenarioMode !== 'load') {
+                drainPod();
+            }
+        }
+
+        function spawnPod() {
+            if (activePods >= MAX_PODS) return;
+            activePods++;
+            renderPods();
+            const newPod = document.getElementById('podGrid').children[activePods - 1];
+            if (newPod) newPod.classList.add('spawning');
+            log('HPA', 'ok', `Scaled up → ${activePods} replicas (queue/pod > threshold)`);
+        }
+
+        function drainPod() {
+            if (activePods <= 1) return;
+            activePods--;
+            renderPods();
+            log('HPA', 'warn', `Scaled down → ${activePods} replicas (queue/pod < target)`);
+        }
+
+        // -------- Scenarios --------
+        function scenario(mode) {
+            scenarioMode = mode;
+            if (scenarioTimeout) clearTimeout(scenarioTimeout);
+
+            if (mode === 'load') {
+                log('SIM', 'warn', 'Load spike injected · +300 req/s for 20s');
+                queueDepth += 80;
+                throughput = 380;
+                scenarioTimeout = setTimeout(() => { scenarioMode = 'steady'; throughput = 142; }, 20000);
+            } else if (mode === '429') {
+                log('SIM', 'err', 'Provider throttling simulated · OpenAI 429s');
+                providers.gpt.throttled = true;
+                providers.gpt.tokens = 200;
+                rate429 = 4.8;
+                scenarioTimeout = setTimeout(() => {
+                    providers.gpt.throttled = false;
+                    rate429 = 0.4;
+                    log('GW', 'ok', 'OpenAI rate limit recovered · throttle cleared');
+                    scenarioMode = 'steady';
+                }, 15000);
+            } else if (mode === 'drain') {
+                log('OPS', 'warn', 'Manual drain triggered · cooling pods');
+                scenarioTimeout = setTimeout(() => { scenarioMode = 'steady'; }, 12000);
+            }
+        }
+
+        // -------- Queue meter --------
+        function renderQueue() {
+            const pct = (queueDepth / QUEUE_CAPACITY) * 100;
+            document.getElementById('queueBar').style.width = pct + '%';
+            document.getElementById('queueText').textContent = `${queueDepth} / ${QUEUE_CAPACITY}`;
+
+            const high = Math.floor(queueDepth * 0.2);
+            const low  = Math.floor(queueDepth * 0.15);
+            const normal = queueDepth - high - low;
+            document.getElementById('qsHigh').textContent = high;
+            document.getElementById('qsNormal').textContent = normal;
+            document.getElementById('qsLow').textContent = low;
+        }
+
+        // -------- Top stats --------
+        function renderStats() {
+            document.getElementById('inflightVal').innerHTML = inflightReqs + '<span class="gw-unit">req</span>';
+            document.getElementById('podCountVal').innerHTML = activePods + '<span class="gw-unit">/8</span>';
+            document.getElementById('queueDepthVal').innerHTML = queueDepth + '<span class="gw-unit">req</span>';
+            document.getElementById('rate429Val').innerHTML = rate429.toFixed(1) + '<span class="gw-unit">%</span>';
+            document.getElementById('flowClient').textContent = throughput + ' req/s';
+        }
+
+        // -------- Rate limiter buckets --------
+        function renderBuckets() {
+            for (const id of Object.keys(providers)) {
+                const p = providers[id];
+                p.tokens = Math.min(p.capacity, p.tokens + p.refill);
+
+                const bucket = document.getElementById('bucket-' + id);
+                const slots = 24;
+                const filled = Math.round((p.tokens / p.capacity) * slots);
+                let html = '';
+                for (let i = 0; i < slots; i++) {
+                    html += `<div class="rl-token ${i < filled ? '' : 'consumed'}"></div>`;
+                }
+                bucket.innerHTML = html;
+
+                const statusEl = document.getElementById('status-' + id);
+                if (p.throttled) {
+                    statusEl.className = 'rl-status throttled';
+                    statusEl.innerHTML = '⚠ ' + Math.round(p.tokens) + ' tokens · THROTTLED · 429 retries active';
+                } else {
+                    statusEl.className = 'rl-status';
+                    statusEl.innerHTML = '●  ' + Math.round(p.tokens).toLocaleString() + ' tokens available · burst OK';
+                }
+            }
+        }
+
+        // -------- Log stream --------
+        function log(tag, level, msg) {
+            const stream = document.getElementById('logStream');
+            const now = new Date();
+            const ts = now.toTimeString().slice(0, 8) + '.' + String(now.getMilliseconds()).padStart(3,'0');
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = `
+                <span class="log-time">${ts}</span>
+                <span class="log-tag ${level}">[${tag}]</span>
+                <span class="log-msg">${msg}</span>
+            `;
+            stream.insertBefore(line, stream.firstChild);
+            while (stream.children.length > 30) stream.removeChild(stream.lastChild);
+        }
+
+        // -------- Tick --------
+        function tick() {
+            // Drift inflight/queue based on scenario
+            const targetInflight = scenarioMode === 'load' ? 110 :
+                                   scenarioMode === '429'  ? 65 :
+                                   scenarioMode === 'drain' ? 18 :
+                                   35 + Math.random() * 20;
+            inflightReqs += Math.round((targetInflight - inflightReqs) * 0.25 + (Math.random()-0.5)*4);
+            inflightReqs = Math.max(0, inflightReqs);
+
+            // queue depth follows inflight - capacity * pods
+            const drainRate = activePods * 8;
+            const arrivalRate = throughput * 0.1;
+            queueDepth = Math.max(0, queueDepth + Math.round(arrivalRate - drainRate + (Math.random()-0.5)*6));
+            if (scenarioMode === 'steady') queueDepth = Math.max(0, queueDepth - Math.floor(Math.random()*4));
+
+            // log random events
+            if (Math.random() < 0.4) {
+                const events = [
+                    { tag:'REQ', level:'ok',   msg:'POST /v1/chat → gpt-4o · 312ms · 200' },
+                    { tag:'REQ', level:'ok',   msg:'POST /v1/chat → claude-3-5-sonnet · 287ms · 200' },
+                    { tag:'REQ', level:'ok',   msg:'POST /v1/chat → mistral-large-2 · 241ms · 200' },
+                    { tag:'Q',   level:'ok',   msg:'enqueue priority=high · waiters=3' },
+                    { tag:'Q',   level:'ok',   msg:'dequeue priority=normal · waited 18ms' },
+                ];
+                const e = events[Math.floor(Math.random() * events.length)];
+                log(e.tag, e.level, e.msg);
+            }
+            if (providers.gpt.throttled && Math.random() < 0.6) {
+                log('RL', 'err', 'OpenAI 429 · retry-after=2s · enqueueing retry');
+            }
+
+            evaluateHPA();
+            renderPods();
+            renderStats();
+            renderQueue();
+            renderBuckets();
+        }
+
+        // -------- Init --------
+        renderPods();
+        renderStats();
+        renderQueue();
+        renderBuckets();
+        log('GW', 'ok', 'Gateway started · listening on :8000');
+        log('K8S', 'ok', 'HPA initialized · 1 ≤ replicas ≤ 8');
+        log('REDIS', 'ok', 'Connected to priority queue · 3 lanes');
+        setInterval(tick, 1500);
+    </script>
+</body>
+</html>
